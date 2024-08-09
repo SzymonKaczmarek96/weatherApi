@@ -10,7 +10,7 @@ public class QuartzConfig {
 
     @Bean
     @Qualifier("currentWeatherJobDetail")
-    public JobDetail currentWeatherJobDetails(){
+    public JobDetail currentWeatherJobDetails() {
         return JobBuilder.newJob(CurrentlyWeatherJob.class)
                 .withIdentity("currentlyWeatherJob")
                 .storeDurably()
@@ -30,7 +30,7 @@ public class QuartzConfig {
 
     @Bean
     @Qualifier("hourlyForecastWeatherJobDetails")
-    public JobDetail hourlyForecastWeatherJobDetails(){
+    public JobDetail hourlyForecastWeatherJobDetails() {
         return JobBuilder.newJob(HourlyWeatherForecastJob.class)
                 .withIdentity("hourlyWeatherForecastJob")
                 .storeDurably()
@@ -38,7 +38,7 @@ public class QuartzConfig {
     }
 
     @Bean
-    public Trigger hourlyForecastWeatherTrigger(@Qualifier("hourlyForecastWeatherJobDetails") JobDetail jobDetail){
+    public Trigger hourlyForecastWeatherTrigger(@Qualifier("hourlyForecastWeatherJobDetails") JobDetail jobDetail) {
         return TriggerBuilder.newTrigger()
                 .forJob(jobDetail)
                 .withIdentity("hourlyForecastWeatherJobDetails")

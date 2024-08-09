@@ -1,5 +1,6 @@
 package com.example.Weather.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,6 +14,8 @@ import java.util.List;
 @NoArgsConstructor
 @Getter
 @Setter
+
 public class CurrentWeather implements Serializable {
+    @JsonProperty("currentWeatherList")
     private List<CurrentWeatherParameters> currentWeatherList = new ArrayList<>();
 }

@@ -5,12 +5,11 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
-// weatherForecastHourlyParametersList
-// weatherForecastListParametersHourly
 
 @Getter
 @Setter
 public class WeatherForecastHourlyParameters implements Serializable {
+
     @JsonProperty("main")
     private TemperatureParameters main;
 

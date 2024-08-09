@@ -9,7 +9,7 @@ import java.io.Serializable;
 
 @Getter
 @Setter
-public class CurrentWeatherParameters implements Serializable{
+public class CurrentWeatherParameters implements Serializable {
 
     @JsonProperty("main")
     private TemperatureParameters main;

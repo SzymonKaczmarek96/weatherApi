@@ -31,9 +31,14 @@ public class CityController {
         return ResponseEntity.ok(cityService.displayHourlyWeather(cityName));
     }
 
-    @PutMapping("/update/{cityName}")
-    public ResponseEntity<CityDto> getUpdateWeatherInformation(@PathVariable String cityName){
-        return ResponseEntity.ok(cityService.updateAllForecastForChosenCity(cityName));
+    @PutMapping("/update/current/{cityName}")
+    public ResponseEntity<CityDto> getUpdateCurrentWeatherInformation(@PathVariable String cityName){
+        return ResponseEntity.ok(cityService.updateCurrentWeatherForChosenCity(cityName));
+    }
+
+    @PutMapping("/update/hourly/{cityName}")
+    public ResponseEntity<CityDto> getUpdateHourlyWeatherInformation(@PathVariable String cityName){
+        return ResponseEntity.ok(cityService.updateHourlyForecastForChosenCity(cityName));
     }
 
     @PutMapping("/current/all")

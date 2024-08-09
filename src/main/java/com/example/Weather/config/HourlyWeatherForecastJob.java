@@ -9,10 +9,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class HourlyWeatherForecastJob implements Job {
-        @Autowired
-        private CityService cityService;
+    @Autowired
+    private CityService cityService;
 
-        public void execute(JobExecutionContext context) throws JobExecutionException {
-            cityService.retrieveHourlyForecastForAllCities();
+    public void execute(JobExecutionContext context) throws JobExecutionException {
+        cityService.retrieveHourlyForecastForAllCities();
     }
 }
