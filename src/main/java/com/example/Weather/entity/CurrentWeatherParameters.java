@@ -17,5 +17,4 @@ public class CurrentWeatherParameters implements Serializable {
     @JsonProperty("wind")
     private WindParameters wind;
 
-
 }

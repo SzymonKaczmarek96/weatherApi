@@ -1,5 +1,6 @@
 package com.example.Weather.entity;
 
+import com.example.Weather.dto.WeatherForecastDto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

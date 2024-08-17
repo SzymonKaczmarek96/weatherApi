@@ -2,7 +2,7 @@ package com.example.Weather.controller;
 
 import com.example.Weather.dto.CityDto;
 import com.example.Weather.dto.CurrentWeatherDto;
-import com.example.Weather.dto.HourlyWeatherDto;
+import com.example.Weather.dto.WeatherForecastDto;
 import com.example.Weather.serivce.CityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -11,44 +11,43 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/city/weather")
 public class CityController {
-    @Autowired
+
+
     private CityService cityService;
 
+    @Autowired
+    public CityController(CityService cityService) {
+        this.cityService = cityService;
+    }
+
     @GetMapping
-    public ResponseEntity<List<CityDto>> displayCurrentWeatherForAllCities(){
+    public ResponseEntity<List<CityDto>> getCityList() {
         return ResponseEntity.ok(cityService.getAllCities());
     }
 
-    @GetMapping("/display/current/{cityName}")
-    public ResponseEntity<CurrentWeatherDto> displayCurrentWeather(@PathVariable String cityName){
-        return ResponseEntity.ok(cityService.displayCurrentWeather(cityName));
+    @GetMapping("/{cityName}/current")
+    public ResponseEntity<CurrentWeatherDto> getCurrentWeatherForChosenCity
+            (@PathVariable String cityName,
+             @RequestParam(name = "forceUpdate", required = false, defaultValue = "false") boolean forceUpdate) {
+        return ResponseEntity.ok(cityService.getCurrentWeather(cityName, forceUpdate));
     }
 
-    @GetMapping("/display/hourly/{cityName}")
-    public ResponseEntity<List<HourlyWeatherDto>> displayHourlyWeather(@PathVariable String cityName){
-        return ResponseEntity.ok(cityService.displayHourlyWeather(cityName));
+    @GetMapping("{cityName}/forecast")
+    public ResponseEntity<List<WeatherForecastDto>> getForecastWeatherForChosenCity
+            (@PathVariable String cityName, @RequestParam(name = "forceUpdate", required = false, defaultValue = "false") boolean forceUpdate) {
+        return ResponseEntity.ok(cityService.getWeatherForecast(cityName, forceUpdate));
     }
 
-    @PutMapping("/update/current/{cityName}")
-    public ResponseEntity<CityDto> getUpdateCurrentWeatherInformation(@PathVariable String cityName){
-        return ResponseEntity.ok(cityService.updateCurrentWeatherForChosenCity(cityName));
+    @GetMapping("/current")
+    public ResponseEntity<List<CityDto>> getCurrentWeatherForAllCities() {
+        return ResponseEntity.ok(cityService.getCurrentWeatherForAllCities());
     }
 
-    @PutMapping("/update/hourly/{cityName}")
-    public ResponseEntity<CityDto> getUpdateHourlyWeatherInformation(@PathVariable String cityName){
-        return ResponseEntity.ok(cityService.updateHourlyForecastForChosenCity(cityName));
-    }
-
-    @PutMapping("/current/all")
-    public ResponseEntity<List<CityDto>> getCurrentWeatherForAllCities(){
-        return ResponseEntity.ok(cityService.retrieveCurrentForecastForAllCities());
-    }
-
-    @PutMapping("/hourly/all")
-    public ResponseEntity<List<CityDto>> getHourlyForecastForAllCities(){
-        return ResponseEntity.ok(cityService.retrieveHourlyForecastForAllCities());
+    @GetMapping("/hourly")
+    public ResponseEntity<List<CityDto>> getWeatherForecastForAllCities() {
+        return ResponseEntity.ok(cityService.getWeatherForecastForAllCities());
     }
 
 }

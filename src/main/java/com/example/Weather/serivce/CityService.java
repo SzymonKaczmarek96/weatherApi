@@ -2,17 +2,18 @@ package com.example.Weather.serivce;
 
 import com.example.Weather.dto.CityDto;
 import com.example.Weather.dto.CurrentWeatherDto;
-import com.example.Weather.dto.HourlyWeatherDto;
-import com.example.Weather.entity.*;
+import com.example.Weather.dto.WeatherForecastDto;
+import com.example.Weather.entity.City;
+import com.example.Weather.entity.CurrentWeather;
+import com.example.Weather.entity.WeatherForecast;
+import com.example.Weather.entity.WeatherForecastHourlyParameters;
 import com.example.Weather.exception.CityNotExistsException;
 import com.example.Weather.repository.CityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,19 +22,13 @@ import java.util.List;
 @Service
 public class CityService {
 
-
-    private final String units = "metric";
     private final CityRepository cityRepository;
-    private WebClient webClient;
-    @Value("${weather.api.key}")
-    private String apiKey;
-    @Value("${weather.api.url}")
-    private String urlWeather;
+    private WeatherApiService weatherApiService;
 
     @Autowired
-    public CityService(CityRepository cityRepository) {
+    public CityService(CityRepository cityRepository, WeatherApiService weatherApiService) {
         this.cityRepository = cityRepository;
-        webClient = WebClient.builder().build();
+        this.weatherApiService = weatherApiService;
     }
 
     public List<CityDto> getAllCities() {
@@ -42,12 +37,11 @@ public class CityService {
 
     @Transactional
     @EventListener(ApplicationReadyEvent.class)
-    public List<CityDto> retrieveCurrentForecastForAllCities() {
+    public List<CityDto> getCurrentWeatherForAllCities() {
         List<City> allCities = cityRepository.findAll();
         List<CityDto> updatedCities = new ArrayList<>();
         for (City city : allCities) {
-            CurrentWeather currentWeather = new CurrentWeather(Arrays.asList(
-                    getWeatherByCityCoordinates(urlWeather, city.getLatitude(), city.getLongitude())));
+            CurrentWeather currentWeather = fetchCurrentWeather(city);
             city.setCurrentWeather(currentWeather);
             city.setLastUpdate();
             cityRepository.save(city).toCityDto();
@@ -58,13 +52,12 @@ public class CityService {
 
     @Transactional
     @EventListener(ApplicationReadyEvent.class)
-    public List<CityDto> retrieveHourlyForecastForAllCities() {
+    public List<CityDto> getWeatherForecastForAllCities() {
         List<City> allCities = cityRepository.findAll();
         List<CityDto> updatedCities = new ArrayList<>();
         for (City city : allCities) {
-            WeatherForecast weatherForecast = new WeatherForecast(Arrays.asList(getWeatherForecastByCityCoordinates
-                    (urlWeather, city.getLatitude(), city.getLongitude())));
-            city.setHourlyCurrentWeather(weatherForecast);
+            WeatherForecast weatherForecast = fetchWeatherForecast(city);
+            city.setWeatherForecast(weatherForecast);
             city.setLastUpdate();
             cityRepository.save(city).toCityDto();
             updatedCities.add(city.toCityDto());
@@ -72,66 +65,72 @@ public class CityService {
         return updatedCities;
     }
 
+    @Transactional
+    public CurrentWeatherDto getCurrentWeather(String cityName, boolean forceUpdate) {
+        if (forceUpdate) {
+            return getForceUpdateCurrentWeatherForSingleCity(cityName);
+        } else {
+            return getUpdateCurrentWeather(cityName).currentWeather().toCurrentWeatherDto(cityName);
+        }
+    }
 
     @Transactional
-    public CityDto updateCurrentWeatherForChosenCity(String cityName) {
+    public List<WeatherForecastDto> getWeatherForecast(String cityName, boolean forceUpdate) {
+        if (forceUpdate) {
+            return getForceUpdateWeatherForecastForSingleCity(cityName);
+        }
+        return getWeatherForecastList(cityName, getUpdateForecastWeather(cityName).hourlyCurrentWeather());
+    }
+
+    private CurrentWeatherDto getForceUpdateCurrentWeatherForSingleCity(String cityName) {
         City city = cityRepository.findCityByCityName(cityName).orElseThrow(() -> new CityNotExistsException(cityName));
-        CurrentWeather currentWeather = new CurrentWeather(Arrays.asList(
-                getWeatherByCityCoordinates(urlWeather, city.getLatitude(), city.getLongitude())));
+        CurrentWeather currentWeather = fetchCurrentWeather(city);
+        return currentWeather.toCurrentWeatherDto(cityName);
+    }
+
+    private List<WeatherForecastDto> getForceUpdateWeatherForecastForSingleCity(String cityName) {
+        City city = cityRepository.findCityByCityName(cityName).orElseThrow(() -> new CityNotExistsException(cityName));
+        WeatherForecast weatherForecast = fetchWeatherForecast(city);
+        return getWeatherForecastList(cityName, weatherForecast);
+    }
+
+    @Transactional
+    private List<WeatherForecastDto> getWeatherForecastList(String cityName, WeatherForecast weatherForecast) {
+        List<WeatherForecastDto> forecastDtoList = new ArrayList<>();
+        List<WeatherForecastHourlyParameters> forecastHourlyParameters = weatherForecast.getWeatherForecastHourlyParametersList()
+                .stream().map(data -> data.getWeatherForecastHourlyParametersList()).findFirst().get();
+        for (WeatherForecastHourlyParameters parameters : forecastHourlyParameters) {
+            forecastDtoList.add(new WeatherForecastDto(cityName, parameters.getMain().getTemperature(),
+                    parameters.getMain().getHumidity(), parameters.getWind().getWindSpeed(), parameters.getDateTime()));
+        }
+        return forecastDtoList;
+    }
+
+    @Transactional
+    private CityDto getUpdateCurrentWeather(String cityName) {
+        City city = cityRepository.findCityByCityName(cityName).orElseThrow(() -> new CityNotExistsException(cityName));
+        CurrentWeather currentWeather = fetchCurrentWeather(city);
         city.setCurrentWeather(currentWeather);
         city.setLastUpdate();
         return cityRepository.save(city).toCityDto();
     }
 
-    public CityDto updateHourlyForecastForChosenCity(String cityName) {
+    @Transactional
+    private CityDto getUpdateForecastWeather(String cityName) {
         City city = cityRepository.findCityByCityName(cityName).orElseThrow(() -> new CityNotExistsException(cityName));
-        WeatherForecast weatherForecast = new WeatherForecast(Arrays.asList(
-                getWeatherForecastByCityCoordinates(urlWeather, city.getLatitude(), city.getLongitude())));
-        city.setHourlyCurrentWeather(weatherForecast);
+        WeatherForecast weatherForecast = fetchWeatherForecast(city);
+        city.setWeatherForecast(weatherForecast);
         return cityRepository.save(city).toCityDto();
     }
 
-
-    public CurrentWeatherDto displayCurrentWeather(String cityName) {
-        City city = cityRepository.findCityByCityName(cityName).orElseThrow(() -> new CityNotExistsException(cityName));
-        return new CurrentWeatherDto(cityName,
-                city.getCurrentWeather().getCurrentWeatherList().stream().map(data -> data.getMain().getTemperature()).findFirst().get(),
-                city.getCurrentWeather().getCurrentWeatherList().stream().map(data -> data.getMain().getHumidity()).findFirst().get(),
-                city.getCurrentWeather().getCurrentWeatherList().stream().map(data -> data.getWind().getWindSpeed()).findFirst().get(),
-                city.getLastUpdate());
+    private CurrentWeather fetchCurrentWeather(City city) {
+        return new CurrentWeather(Arrays.asList(
+                weatherApiService.getCurrentWeatherByCityCoordinates(city.getLatitude(), city.getLongitude())));
     }
 
-    public List<HourlyWeatherDto> displayHourlyWeather(String cityName) {
-        City city = cityRepository.findCityByCityName(cityName).orElseThrow(() -> new CityNotExistsException(cityName));
-        List<HourlyWeatherDto> hourlyWeatherDtoList = new ArrayList<>();
-        List<WeatherForecastHourlyParameters> hourlyParameters = city.getHourlyCurrentWeather().getWeatherForecastHourlyParametersList().stream().map(data -> data.getList()).findFirst().get();
-        for (WeatherForecastHourlyParameters parameters : hourlyParameters) {
-            hourlyWeatherDtoList.add(
-                    new HourlyWeatherDto(cityName, parameters.getMain().getTemperature(), parameters.getMain().getHumidity(),
-                            parameters.getWind().getWindSpeed(), parameters.getDtTxt()));
-        }
-        return hourlyWeatherDtoList;
+    private WeatherForecast fetchWeatherForecast(City city) {
+        return new WeatherForecast(Arrays.asList(
+                weatherApiService.getWeatherForecastByCityCoordinates(city.getLatitude(), city.getLongitude())));
     }
-
-    private CurrentWeatherParameters getWeatherByCityCoordinates(String apiUrl, double latitude, double longitude) {
-        String url = String.format("%s/weather?lat=%f&lon=%f&appid=%s&units=%s", apiUrl, latitude, longitude, apiKey, units);
-        return webClient.get()
-                .uri(url)
-                .retrieve()
-                .bodyToMono(CurrentWeatherParameters.class)
-                .block();
-
-    }
-
-    private WeatherForecastHourly getWeatherForecastByCityCoordinates(String apiUrl, double latitude, double longitude) {
-        String url = String.format("%s/forecast?lat=%f&lon=%f&appid=%s&units=%s", apiUrl, latitude, longitude, apiKey, units);
-        return webClient.get()
-                .uri(url)
-                .retrieve()
-                .bodyToMono(WeatherForecastHourly.class)
-                .block();
-
-    }
-
 }
 

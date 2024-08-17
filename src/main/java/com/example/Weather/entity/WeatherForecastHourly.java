@@ -12,6 +12,6 @@ import java.util.List;
 public class WeatherForecastHourly implements Serializable {
 
     @JsonProperty("list")
-    private List<WeatherForecastHourlyParameters> list;
+    private List<WeatherForecastHourlyParameters> weatherForecastHourlyParametersList;
 
 }

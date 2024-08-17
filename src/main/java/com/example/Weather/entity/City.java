@@ -43,14 +43,14 @@ public class City implements Serializable {
     @Setter
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "hourly_forecast")
-    @JsonProperty("hourlyCurrentWeather")
-    private WeatherForecast hourlyCurrentWeather;
+
+    private WeatherForecast weatherForecast;
 
     @Column(name = "last_update")
     private LocalDateTime lastUpdate;
 
     public CityDto toCityDto() {
-        return new CityDto(cityName, latitude, longitude, currentWeather, hourlyCurrentWeather, lastUpdate);
+        return new CityDto(cityName, latitude, longitude, currentWeather, weatherForecast, lastUpdate);
     }
 
     public void setLastUpdate() {

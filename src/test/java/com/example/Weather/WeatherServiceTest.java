@@ -3,11 +3,12 @@ package com.example.Weather;
 import com.example.Weather.controller.CityController;
 import com.example.Weather.dto.CityDto;
 import com.example.Weather.dto.CurrentWeatherDto;
-import com.example.Weather.dto.HourlyWeatherDto;
+import com.example.Weather.dto.WeatherForecastDto;
 import com.example.Weather.entity.*;
 import com.example.Weather.exception.CityNotExistsException;
 import com.example.Weather.repository.CityRepository;
 import com.example.Weather.serivce.CityService;
+import com.example.Weather.serivce.WeatherApiService;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import org.junit.jupiter.api.Assertions;
@@ -38,6 +39,9 @@ class WeatherServiceTest extends TestContainer {
     @Autowired
     private CityRepository cityRepository;
 
+    @Autowired
+    private WeatherApiService weatherApiService;
+
     @DynamicPropertySource
     static void configure(DynamicPropertyRegistry registry) {
         registry.add("weather.api.url", () -> "http://localhost:8081");
@@ -48,69 +52,54 @@ class WeatherServiceTest extends TestContainer {
         //given
         saveCityForRepo();
         //then
-        List<CityDto> cityDtoList = cityController.displayCurrentWeatherForAllCities().getBody();
+        List<CityDto> cityDtoList = cityController.getCityList().getBody();
         //then
-        assertEquals(HttpStatusCode.valueOf(200), cityController.displayCurrentWeatherForAllCities().getStatusCode());
+        assertEquals(HttpStatusCode.valueOf(200), cityController.getCityList().getStatusCode());
         assertEquals(1, cityDtoList.size());
     }
 
 
     @Test
-    void shouldDisplayWeatherParametersForEnteredCity() {
+    void shouldGetCurrentWeatherParametersForEnteredCityIfForceUpdateIsFalse() {
         //given
         saveCityForRepo();
-        //when
-        CurrentWeatherDto currentWeatherDto = cityController.displayCurrentWeather("Warsaw").getBody();
-        //then
-        assertEquals(HttpStatusCode.valueOf(200), cityController.displayCurrentWeather("Warsaw").getStatusCode());
-        assertEquals("Warsaw", currentWeatherDto.cityName());
-        assertEquals(70, currentWeatherDto.humidityPercentage());
-        assertEquals(25.3, currentWeatherDto.celsiusTemp());
-        assertEquals(1.54, currentWeatherDto.speedWind());
-    }
 
-
-    @Test
-    public void shouldThrowNotExistExceptionWhenCityNotExists() {
-        Assertions.assertThrows(CityNotExistsException.class, () -> cityController.displayCurrentWeather("Moscow").getBody());
-    }
-
-    @Test
-    public void shouldDisplayWeatherForecastForEnteredCity() {
-        //given
-        saveCityForRepo();
-        //when
-        List<HourlyWeatherDto> hourlyWeatherDto = cityController.displayHourlyWeather("Warsaw").getBody();
-        //then
-        assertEquals(HttpStatusCode.valueOf(200), cityController.displayHourlyWeather("Warsaw").getStatusCode());
-        assertEquals(28, hourlyWeatherDto.stream().map(HourlyWeatherDto::celsiusTemp).findFirst().get());
-        assertEquals(80, hourlyWeatherDto.stream().map(HourlyWeatherDto::humidityPercentage).findFirst().get());
-        assertEquals(1.05, hourlyWeatherDto.stream().map(HourlyWeatherDto::windSpeed).findFirst().get());
-        assertEquals("2024-08-04 12:00:00", hourlyWeatherDto.stream().map(HourlyWeatherDto::dataTime).findFirst().get());
-    }
-
-
-    @Test
-    void shouldUpdateCurrentWeather() {
-        //given
-        saveCityForRepo();
         WireMock.stubFor(get(urlEqualTo("/weather?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(jsonForCurrentWeather())
-                ));
+                        .withBody(jsonForCurrentWeather())));
         //when
-        CityDto cityDto = cityService.updateCurrentWeatherForChosenCity("Warsaw");
+        CurrentWeatherDto currentWeatherDto = cityService.getCurrentWeather("Warsaw", false);
         //then
-        assertEquals("Warsaw", cityDto.cityName());
-        assertEquals(28.43, cityDto.currentWeather().getCurrentWeatherList().get(0).getMain().getTemperature());
-        assertEquals(80, cityDto.currentWeather().getCurrentWeatherList().get(0).getMain().getHumidity());
-        assertEquals(1.43, cityDto.currentWeather().getCurrentWeatherList().get(0).getWind().getWindSpeed());
+        assertEquals("Warsaw", currentWeatherDto.cityName());
+        assertEquals(80, currentWeatherDto.humidityPercentage());
+        assertEquals(28.43, currentWeatherDto.celsiusTemp());
+        assertEquals(1.43, currentWeatherDto.speedWind());
     }
 
     @Test
-    void shouldThrowCityNotExistsExceptionWhenUrlIsIncorrect() {
+    void shouldGetCurrentWeatherParametersForEnteredCityIfForceUpdateIsTrue() {
+        //given
+        saveCityForRepo();
+
+        WireMock.stubFor(get(urlEqualTo("/weather?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(jsonForCurrentWeather())));
+        //when
+        CurrentWeatherDto currentWeatherDto = cityService.getCurrentWeather("Warsaw", true);
+        //then
+        assertEquals(HttpStatusCode.valueOf(200), cityController.getCurrentWeatherForChosenCity("Warsaw", false).getStatusCode());
+        assertEquals("Warsaw", currentWeatherDto.cityName());
+        assertEquals(80, currentWeatherDto.humidityPercentage());
+        assertEquals(28.43, currentWeatherDto.celsiusTemp());
+        assertEquals(1.43, currentWeatherDto.speedWind());
+    }
+
+    @Test
+    void shouldThrowCityNotExistsExceptionWhenCityIsNonExistentAndForceUpdateIsFalseForCurrentWeather() {
         //given
         WireMock.stubFor(get(urlEqualTo("/weather?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
                 .willReturn(aResponse()
@@ -119,36 +108,88 @@ class WeatherServiceTest extends TestContainer {
                         .withBody(jsonForCurrentWeather())
                 ));
         //when
-        Assertions.assertThrows(CityNotExistsException.class, () -> cityService.updateCurrentWeatherForChosenCity("Moscow"));
+        Assertions.assertThrows(CityNotExistsException.class, () -> cityService.getCurrentWeather("Moscow", false));
     }
 
     @Test
-    void shouldUpdateWeatherForecast() {
+    void shouldThrowCityNotExistsExceptionWhenCityIsNonExistentAndForceUpdateIsTureForCurrentWeather() {
+        //given
+        WireMock.stubFor(get(urlEqualTo("/weather?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
+                .willReturn(aResponse()
+                        .withStatus(404)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(jsonForCurrentWeather())
+                ));
+        //when
+        Assertions.assertThrows(CityNotExistsException.class, () -> cityService.getCurrentWeather("Moscow", true));
+    }
+
+
+    @Test
+    public void shouldGetWeatherForecastParametersForEnteredCityIfForceUpdateIsTrue() {
         //given
         saveCityForRepo();
         WireMock.stubFor(get(urlEqualTo("/forecast?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(jsonForForecast())
+                        .withBody(jsonForWeatherForecast())
                 ));
         //when
-        CityDto cityDto = cityService.updateHourlyForecastForChosenCity("Warsaw");
+        List<WeatherForecastDto> weatherForecastDto = cityService.getWeatherForecast("Warsaw", true);
         //then
-        Assertions.assertEquals("Warsaw", cityDto.cityName());
-        Assertions.assertEquals(23.93, cityDto.hourlyCurrentWeather().getWeatherForecastHourlyParametersList().stream()
-                .map(forecast -> forecast.getList().stream()
-                        .map(temp -> temp.getMain().getTemperature())).findFirst().get().findFirst().get());
-        Assertions.assertEquals(59, cityDto.hourlyCurrentWeather().getWeatherForecastHourlyParametersList()
-                .stream().map(forecast -> forecast.getList()
-                        .stream().map(hum -> hum.getMain().getHumidity()).findFirst().get()).findFirst().get());
-        Assertions.assertEquals(1.9, cityDto.hourlyCurrentWeather().getWeatherForecastHourlyParametersList()
-                .stream().map(forecast -> forecast.getList()
-                        .stream().map(wind -> wind.getWind().getWindSpeed()).findFirst().get()).findFirst().get());
-        Assertions.assertEquals("2024-08-08 18:00:00", cityDto.hourlyCurrentWeather().getWeatherForecastHourlyParametersList()
-                .stream().map(forecast -> forecast.getList()
-                        .stream().map(dateTime -> dateTime.getDtTxt()).findFirst().get()).findFirst().get());
+        Assertions.assertEquals("Warsaw", weatherForecastDto.stream().map(cityName -> cityName.cityName()).findFirst().get());
+        Assertions.assertEquals(23.93, weatherForecastDto.stream().map(data -> data.celsiusTemp()).findFirst().get());
+        Assertions.assertEquals(59, weatherForecastDto.stream().map(data -> data.humidityPercentage()).findFirst().get());
+        Assertions.assertEquals(1.9, weatherForecastDto.stream().map(data -> data.windSpeed()).findFirst().get());
+        Assertions.assertEquals("2024-08-08 18:00:00", weatherForecastDto.stream().map(data -> data.dataTime()).findFirst().get());
+    }
 
+    @Test
+    void shouldThrowCityNotExistsExceptionWhenCityIsNonExistentAndForceUpdateIsTrueForWeatherForecast() {
+        //given
+        WireMock.stubFor(get(urlEqualTo("/forecast?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(jsonForWeatherForecast())
+                ));
+        //when
+        Assertions.assertThrows(CityNotExistsException.class, () -> cityService.getWeatherForecast("Moscow", true));
+    }
+
+    @Test
+    void shouldThrowCityNotExistsExceptionWhenCityIsNonExistentAndForceUpdateIsFalseForWeatherForecast() {
+        //given
+        WireMock.stubFor(get(urlEqualTo("/forecast?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(jsonForWeatherForecast())
+                ));
+        //when
+        Assertions.assertThrows(CityNotExistsException.class, () -> cityService.getWeatherForecast("Moscow", false));
+    }
+
+
+    @Test
+    public void shouldGetWeatherForecastParametersForEnteredCityIfForceUpdateIsFalse() {
+        //given
+        saveCityForRepo();
+        WireMock.stubFor(get(urlEqualTo("/forecast?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(jsonForWeatherForecast())
+                ));
+        //when
+        List<WeatherForecastDto> weatherForecastDto = cityService.getWeatherForecast("Warsaw", false);
+        //then
+        Assertions.assertEquals("Warsaw", weatherForecastDto.stream().map(cityName -> cityName.cityName()).findFirst().get());
+        Assertions.assertEquals(23.93, weatherForecastDto.stream().map(data -> data.celsiusTemp()).findFirst().get());
+        Assertions.assertEquals(59, weatherForecastDto.stream().map(data -> data.humidityPercentage()).findFirst().get());
+        Assertions.assertEquals(1.9, weatherForecastDto.stream().map(data -> data.windSpeed()).findFirst().get());
+        Assertions.assertEquals("2024-08-08 18:00:00", weatherForecastDto.stream().map(data -> data.dataTime()).findFirst().get());
     }
 
     @Test
@@ -162,7 +203,7 @@ class WeatherServiceTest extends TestContainer {
                         .withBody(jsonForCurrentWeather())
                 ));
         //when
-        List<CityDto> cityDto = cityService.retrieveCurrentForecastForAllCities();
+        List<CityDto> cityDto = cityService.getCurrentWeatherForAllCities();
         //then
         Assertions.assertEquals("Warsaw", cityDto.stream().map(city -> city.cityName()).findFirst().get());
         Assertions.assertEquals(28.43, cityDto.stream()
@@ -181,34 +222,52 @@ class WeatherServiceTest extends TestContainer {
     public void shouldUpdateWeatherForecastForAllCity() {
         //given
         saveCityForRepo();
-        WireMock.stubFor(get(urlEqualTo("/forecast?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
+        WireMock.stubFor(get(urlEqualTo("/forecast?lat=52.150000&lon=21.020000&your_api_key&units=metric"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(jsonForForecast())
+                        .withBody(jsonForWeatherForecast())
                 ));
         //when
-        List<CityDto> cityDto = cityService.retrieveHourlyForecastForAllCities();
+        List<CityDto> cityDto = cityService.getWeatherForecastForAllCities();
         //then
         Assertions.assertEquals("Warsaw", cityDto.stream().map(city -> city.cityName()).findFirst().get());
         Assertions.assertEquals(23.93, cityDto.stream().map(city -> city.hourlyCurrentWeather()
                 .getWeatherForecastHourlyParametersList()
-                .stream().map(forecast -> forecast.getList()
+                .stream().map(forecast -> forecast.getWeatherForecastHourlyParametersList()
                         .stream().map(temp -> temp.getMain().getTemperature()).findFirst().get()).findFirst().get()).findFirst().get());
         Assertions.assertEquals(59, cityDto.stream().map(city -> city.hourlyCurrentWeather()
                 .getWeatherForecastHourlyParametersList()
-                .stream().map(forecast -> forecast.getList()
+                .stream().map(forecast -> forecast.getWeatherForecastHourlyParametersList()
                         .stream().map(hum -> hum.getMain().getHumidity()).findFirst().get()).findFirst().get()).findFirst().get());
 
         Assertions.assertEquals(1.9, cityDto.stream().map(city -> city.hourlyCurrentWeather()
                 .getWeatherForecastHourlyParametersList()
-                .stream().map(forecast -> forecast.getList()
+                .stream().map(forecast -> forecast.getWeatherForecastHourlyParametersList()
                         .stream().map(wind -> wind.getWind().getWindSpeed()).findFirst().get()).findFirst().get()).findFirst().get());
         Assertions.assertEquals("2024-08-08 18:00:00", cityDto.stream()
                 .map(city -> city.hourlyCurrentWeather().getWeatherForecastHourlyParametersList()
-                        .stream().map(forecast -> forecast.getList()
-                                .stream().map(dateTime -> dateTime.getDtTxt()).findFirst().get()).findFirst().get()).findFirst().get())
+                        .stream().map(forecast -> forecast.getWeatherForecastHourlyParametersList()
+                                .stream().map(dateTime -> dateTime.getDateTime()).findFirst().get()).findFirst().get()).findFirst().get())
         ;
+    }
+
+    @Test
+    public void shouldConnectWithCurrentWeatherApi() {
+        //given
+        saveCityForRepo();
+        WireMock.stubFor(get(urlEqualTo("/weather?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(jsonForCurrentWeather())
+                ));
+        //when
+        CurrentWeatherParameters currentWeatherParameters = weatherApiService.getCurrentWeatherByCityCoordinates(52.15, 21.02);
+        //then
+        assertEquals(80, currentWeatherParameters.getMain().getHumidity());
+        assertEquals(28.43, currentWeatherParameters.getMain().getTemperature());
+        assertEquals(1.43, currentWeatherParameters.getWind().getWindSpeed());
     }
 
     private void saveCityForRepo() {
@@ -239,9 +298,9 @@ class WeatherServiceTest extends TestContainer {
         WeatherForecastHourlyParameters weatherForecastHourlyParameters = new WeatherForecastHourlyParameters();
         weatherForecastHourlyParameters.setMain(temperatureParameters);
         weatherForecastHourlyParameters.setWind(windParameters);
-        weatherForecastHourlyParameters.setDtTxt("2024-08-04 12:00:00");
+        weatherForecastHourlyParameters.setDateTime("2024-08-04 12:00:00");
         WeatherForecastHourly weatherForecastHourly = new WeatherForecastHourly();
-        weatherForecastHourly.setList(List.of(weatherForecastHourlyParameters));
+        weatherForecastHourly.setWeatherForecastHourlyParametersList(List.of(weatherForecastHourlyParameters));
         return weatherForecastHourly;
     }
 
@@ -259,7 +318,7 @@ class WeatherServiceTest extends TestContainer {
     }
 
 
-    private String jsonForForecast() {
+    private String jsonForWeatherForecast() {
         return "{ " +
                 "\"list\": [ { " +
                 "\"main\": { " +

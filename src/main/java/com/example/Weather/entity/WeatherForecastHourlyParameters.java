@@ -17,6 +17,6 @@ public class WeatherForecastHourlyParameters implements Serializable {
     private WindParameters wind;
 
     @JsonProperty("dt_txt")
-    private String dtTxt;
+    private String dateTime;
 
 }
