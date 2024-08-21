@@ -222,7 +222,7 @@ class WeatherServiceTest extends TestContainer {
     public void shouldUpdateWeatherForecastForAllCity() {
         //given
         saveCityForRepo();
-        WireMock.stubFor(get(urlEqualTo("/forecast?lat=52.150000&lon=21.020000&your_api_key&units=metric"))
+        WireMock.stubFor(get(urlEqualTo("/forecast?lat=52.150000&lon=21.020000&appid=your_api_key&units=metric"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
@@ -316,7 +316,6 @@ class WeatherServiceTest extends TestContainer {
                 "} ";
 
     }
-
 
     private String jsonForWeatherForecast() {
         return "{ " +

@@ -9,8 +9,7 @@ import org.springframework.context.annotation.Configuration;
 public class QuartzConfig {
 
     @Bean
-    @Qualifier("currentWeatherJobDetail")
-    public JobDetail currentWeatherJobDetails() {
+    public JobDetail currentWeatherJobDetail() {
         return JobBuilder.newJob(CurrentlyWeatherJob.class)
                 .withIdentity("currentlyWeatherJob")
                 .storeDurably()
@@ -18,9 +17,9 @@ public class QuartzConfig {
     }
 
     @Bean
-    public Trigger currentWeatherTrigger(@Qualifier("currentWeatherJobDetail") JobDetail jobDetail) {
+    public Trigger currentWeatherTrigger(JobDetail currentWeatherJobDetail) {
         return TriggerBuilder.newTrigger()
-                .forJob(jobDetail)
+                .forJob(currentWeatherJobDetail)
                 .withIdentity("currentWeatherTrigger")
                 .withSchedule(SimpleScheduleBuilder.simpleSchedule()
                         .withIntervalInMinutes(30)
@@ -29,8 +28,7 @@ public class QuartzConfig {
     }
 
     @Bean
-    @Qualifier("hourlyForecastWeatherJobDetails")
-    public JobDetail hourlyForecastWeatherJobDetails() {
+    public JobDetail hourlyForecastWeatherJobDetail() {
         return JobBuilder.newJob(HourlyWeatherForecastJob.class)
                 .withIdentity("hourlyWeatherForecastJob")
                 .storeDurably()
@@ -38,15 +36,13 @@ public class QuartzConfig {
     }
 
     @Bean
-    public Trigger hourlyForecastWeatherTrigger(@Qualifier("hourlyForecastWeatherJobDetails") JobDetail jobDetail) {
+    public Trigger hourlyForecastWeatherTrigger(JobDetail hourlyForecastWeatherJobDetail) {
         return TriggerBuilder.newTrigger()
-                .forJob(jobDetail)
-                .withIdentity("hourlyForecastWeatherJobDetails")
+                .forJob(hourlyForecastWeatherJobDetail)
+                .withIdentity("hourlyForecastWeatherTrigger")
                 .withSchedule(SimpleScheduleBuilder.simpleSchedule()
                         .withIntervalInHours(2)
                         .repeatForever())
                 .build();
     }
-
-
 }
