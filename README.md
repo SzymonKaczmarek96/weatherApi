@@ -16,20 +16,20 @@ Technologie Used
 The Weather API project is a Spring Boot-based application designed to provide current weather data and hourly weather forecasts for various cities. The application integrates with external weather services to fetch real-time weather information, which is then processed and stored in a local database. Users can access this weather data through RESTful API endpoints.
 
 ### Project Structure
-.controller: Handles HTTP requests and serves as the entry point for various operations related to cities and weather data.
-.dto: Data Transfer Objects used for transferring data between different layers of the application.
-.entity: Entity classes that represent the database tables and encapsulate the core data.
-.exception: Custom exception classes for handling specific error scenarios.
-.repository: Interfaces for database interaction using Spring Data JPA.
-.service: Contains business logic implementations that handle operations related to cities and weather data.
-.config: Configuration classes that set up application-specific settings, such as job scheduling.
-.resources: Contains configuration files and static resources used by the application.
-.data.sql: SQL script used to initialize the database with predefined cities or other necessary data.
-.test: Contains unit and integration tests to ensure the application is functioning correctly.
+-controller: Handles HTTP requests and serves as the entry point for various operations related to cities and weather data.
+-dto: Data Transfer Objects used for transferring data between different layers of the application.
+-entity: Entity classes that represent the database tables and encapsulate the core data.
+-exception: Custom exception classes for handling specific error scenarios.
+-repository: Interfaces for database interaction using Spring Data JPA.
+-service: Contains business logic implementations that handle operations related to cities and weather data.
+-config: Configuration classes that set up application-specific settings, such as job scheduling.
+-resources: Contains configuration files and static resources used by the application.
+-data.sql: SQL script used to initialize the database with predefined cities or other necessary data.
+-test: Contains unit and integration tests to ensure the application is functioning correctly.
 
-WeatherServiceTest: Unit tests for the WeatherService class, verifying business logic related to weather data processing.
-TestContainer: Integration tests using TestContainers to test database interactions in an isolated environment.
-WeatherApplication: The main entry point for the Spring Boot application, responsible for bootstrapping and running the application
+-WeatherServiceTest: Unit tests for the WeatherService class, verifying business logic related to weather data processing.
+-TestContainer: Integration tests using TestContainers to test database interactions in an isolated environment.
+-WeatherApplication: The main entry point for the Spring Boot application, responsible for bootstrapping and running the application
 
 #### Setup
 
