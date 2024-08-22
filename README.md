@@ -1,4 +1,4 @@
-# weatherApi
+# WeatherApi
 
 This project is a Weather API application that provides current weather data and hourly weather forecasts. It is built using Spring Boot and integrates with external weather APIs to retrieve data. The project is organized into several packages, each containing specific components that contribute to the functionality of the application.
 
